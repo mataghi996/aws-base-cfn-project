@@ -1,1 +1,1 @@
-# was-base-cfn-project
+# aws-base-cfn-project
