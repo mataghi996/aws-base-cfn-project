@@ -1,0 +1,1 @@
+# was-base-cfn-project
