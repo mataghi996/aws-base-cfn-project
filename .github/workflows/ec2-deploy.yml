@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ec2-webserver.yaml'
-      - '.github/workflows/deploy.yml'
+      - 'new-project-template.yaml'
+      - '.github/workflows/ec2-deploy.yml'
   workflow_dispatch:
 
 permissions:
