@@ -1,72 +1,40 @@
 Parameters:
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+
   AmiId:
     Type: AWS::EC2::Image::Id
-    Description: "Amazon Linux AMI ID for this region"
- 
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
   InstanceType:
     Type: String
     Default: t3.micro
-    Description: "EC2 instance type"
- 
+
   KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
-    Description: "Existing EC2 key pair"
+
 
 Resources:
 
-  myVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: stack
-          Value: production
-
-
-  mySubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: 10.0.0.0/24
-      AvailabilityZone: ca-central-1a
-      Tags:
-        - Key: stack
-          Value: production
-
-
-  InstanceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP to client host
-      VpcId: !Ref myVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
   myInstance:
     Type: AWS::EC2::Instance
-    DependsOn: PublicRoute
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPairName
-      SubnetId: !Ref mySubnet
+      SubnetId: !Ref SubnetId
       SecurityGroupIds:
-        - !Ref InstanceSecurityGroup
+        - !Ref SecurityGroupId
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y
           yum install -y httpd
           systemctl start httpd
           systemctl enable httpd
-      Tags:
-        - Key: stack
-          Value: production

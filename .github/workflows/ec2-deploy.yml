@@ -1,50 +1,65 @@
-name: Deploy EC2 CloudFormation Stack
+name: AWS CloudFormation Deploy/Destroy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'new-project-template.yaml'
-      - '.github/workflows/ec2-deploy.yml'
   workflow_dispatch:
-
-permissions:
-  id-token: write   # required for OIDC
-  contents: read
-
-env:
-  AWS_REGION: ca-central-1
-  STACK_NAME: my-ec2-stack
+    inputs:
+      action:
+        description: "Choose Deploy or Destroy"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - destroy
 
 jobs:
+
   deploy:
+    if: ${{ github.event.inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ca-central-1
 
-      - name: Validate template
-        run: aws cloudformation validate-template --template-body file://ec2-webserver.yaml
-
-      - name: Deploy stack
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
-        with:
-          name: ${{ env.STACK_NAME }}
-          template: ec2-webserver.yaml
-          parameter-overrides: >-
-            AmiId=${{ vars.AMI_ID }},
-            InstanceType=t3.micro,
-            KeyPairName=${{ vars.KEY_PAIR_NAME }}
-          no-fail-on-empty-changeset: "1"
-
-      - name: Show outputs
+      - name: Deploy CloudFormation
         run: |
-          aws cloudformation describe-stacks \
-            --stack-name ${{ env.STACK_NAME }} \
-            --query "Stacks[0].Outputs" --output table
+          aws cloudformation deploy \
+            --template-file cloudformation.yml \
+            --stack-name my-ec2-stack \
+            --parameter-overrides \
+              VpcId=${{ secrets.VPC_ID }} \
+              SubnetId=${{ secrets.SUBNET_ID }} \
+              AmiId=${{ secrets.AMI_ID }} \
+              SecurityGroupId=${{ secrets.SECURITY_GROUP_ID }} \
+              InstanceType=t3.micro \
+              KeyPairName=${{ secrets.KEY_PAIR_NAME }}
+
+  destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ca-central-1
+
+      - name: Destroy CloudFormation
+        run: |
+          aws cloudformation delete-stack \
+            --stack-name my-ec2-stack
+
+      - name: Wait for Stack Deletion
+        run: |
+          aws cloudformation wait stack-delete-complete \
+            --stack-name my-ec2-stack
